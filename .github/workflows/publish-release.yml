@@ -1,0 +1,89 @@
+name: Publish Accepted Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'release/accepted.json'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: publish-accepted-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read accepted release manifest
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest='release/accepted.json'
+          echo "version=$(jq -r '.version' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "tag=$(jq -r '.tag' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$(jq -r '.source_sha' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "run_id=$(jq -r '.run_id' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$(jq -r '.artifact_name' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "asset_name=$(jq -r '.asset_name' "$manifest")" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(jq -r '.sha256' "$manifest")" >> "$GITHUB_OUTPUT"
+
+      - name: Download exact accepted artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.release.outputs.artifact_name }}
+          path: release-asset
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.release.outputs.run_id }}
+
+      - name: Verify accepted DLL
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="release-asset/${{ steps.release.outputs.asset_name }}"
+          test -f "$asset"
+          actual="$(sha256sum "$asset" | awk '{print $1}')"
+          expected='${{ steps.release.outputs.sha256 }}'
+          if [ "$actual" != "$expected" ]; then
+            echo "SHA-256 mismatch: expected $expected, got $actual" >&2
+            exit 1
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ steps.release.outputs.tag }}'
+          asset="release-asset/${{ steps.release.outputs.asset_name }}"
+          source_sha='${{ steps.release.outputs.source_sha }}'
+          version='${{ steps.release.outputs.version }}'
+
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists; leaving it unchanged."
+            exit 0
+          fi
+
+          cat > release-notes.md <<EOF
+          Stable accepted release for Graveyard Keeper 1.407.
+
+          SHA-256: `${{ steps.release.outputs.sha256 }}`
+          EOF
+
+          gh release create "$tag" "$asset" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$source_sha" \
+            --title "Gamepad Tooltip Position Fix $version" \
+            --notes-file release-notes.md
