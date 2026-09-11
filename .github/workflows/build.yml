@@ -1,0 +1,68 @@
+name: Build Gamepad Tooltip Position Fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'GamepadTooltipPositionFix.csproj'
+      - 'nuget.config'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gamepad-tooltip-position-fix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read mod version
+        id: version
+        shell: pwsh
+        run: |
+          $source = Get-Content 'src/GamepadTooltipPositionFix.cs' -Raw
+          if ($source -notmatch 'PluginVersion\s*=\s*"([^"]+)"') {
+            throw 'Could not read PluginVersion from src/GamepadTooltipPositionFix.cs'
+          }
+          $version = $Matches[1]
+          "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Host "Building Gamepad Tooltip Position Fix $version"
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore GamepadTooltipPositionFix.csproj --configfile nuget.config
+
+      - name: Build Release DLL
+        run: dotnet build GamepadTooltipPositionFix.csproj -c Release --no-restore
+
+      - name: Prepare versioned artifact
+        shell: pwsh
+        run: |
+          $source = 'bin/Release/GamepadTooltipPositionFix.dll'
+          if (!(Test-Path $source)) {
+            throw "Expected DLL not found: $source"
+          }
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          Copy-Item $source "artifacts/Gamepad Tooltip Position Fix ${{ steps.version.outputs.version }}.dll"
+
+      - name: Upload versioned DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: GamepadTooltipPositionFix-${{ steps.version.outputs.version }}
+          path: artifacts/Gamepad Tooltip Position Fix ${{ steps.version.outputs.version }}.dll
+          if-no-files-found: error
+          retention-days: 7
