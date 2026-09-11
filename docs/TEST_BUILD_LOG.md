@@ -34,6 +34,8 @@
 - **Changed:** Repository/project/assembly/DLL/plugin display name renamed; namespace/class normalized; BepInEx GUID deliberately unchanged.
 - **Not intended to change:** Tooltip placement, target screens, controller-only behavior, mouse behavior, gameplay, saves, or runtime binding strategy.
 - **Source basis:** accepted legacy 1.2.0 runtime behavior documented above.
-- **Build:** pending clean public CI after bootstrap commit.
-- **Requested smoke test after a successful build:** remove `MoveGamepadTooltips.dll`, install only the new `GamepadTooltipPositionFix` DLL, launch the game, verify Character/Inventory and Technology tooltips including one long description.
-- **Result:** **pending build/smoke test**.
+- **Source commit:** `fefe71d3492221d879efd51d3cafaabceab8c115`.
+- **CI:** public GitHub Actions run `34609035779` succeeded on `windows-latest`; artifact `GamepadTooltipPositionFix-1.3.0` (`10267347004`).
+- **Built DLL SHA-256:** `bc1915d92afdb2eb6d35995193414aba17a36784c7758dd200705f38ba5e8b8e`.
+- **Requested smoke test:** remove `MoveGamepadTooltips.dll`, install only `Gamepad Tooltip Position Fix 1.3.0.dll`, launch the game, verify Character/Inventory and Technology tooltips including one long description.
+- **Result:** **clean build passed; pending smoke test**.
