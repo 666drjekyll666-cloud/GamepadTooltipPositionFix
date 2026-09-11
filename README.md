@@ -19,13 +19,15 @@ A small quality-of-life mod for **Graveyard Keeper** that moves controller-focus
 
 If upgrading from **Move Gamepad Tooltips**, first remove `MoveGamepadTooltips.dll` so that two assemblies with the same BepInEx plugin GUID are not installed together.
 
-Then copy the current `GamepadTooltipPositionFix.dll` release into:
+Then copy `GamepadTooltipPositionFix.dll` into:
 
 `Graveyard Keeper/BepInEx/plugins/`
 
 ## Status
 
-The accepted gameplay baseline is legacy version **1.2.0**. Version **1.3.0** is the clean public-repository/name migration of that same behavior; the plugin GUID remains unchanged for upgrade compatibility.
+Current stable version: **1.3.0**.
+
+Version 1.3.0 is the clean public-repository/name migration of the accepted legacy 1.2.0 behavior. It was built successfully in the new public repository and smoke-tested in game on 2026-09-11 in Character/Inventory, Technology, and with a long tooltip. The BepInEx GUID remains unchanged for upgrade compatibility.
 
 The public repository intentionally starts with fresh Git history. Historical development, diagnostics, and the accepted 1.2.0 binary remain in the private legacy repository. See `docs/MIGRATION_PROVENANCE.md` for exact source provenance.
 

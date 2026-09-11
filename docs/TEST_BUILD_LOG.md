@@ -28,14 +28,15 @@
 - **Game test:** User confirmed on 2026-09-05 that everything worked correctly.
 - **Result:** **accepted**.
 
-## 1.3.0 - Public migration/rebrand candidate
+## 1.3.0 - Accepted public release
 
-- **Goal:** Move the accepted mod into a clean public repository under the native-sounding name **Gamepad Tooltip Position Fix**.
+- **Goal:** Move the accepted mod into a clean public repository under the name **Gamepad Tooltip Position Fix**.
 - **Changed:** Repository/project/assembly/DLL/plugin display name renamed; namespace/class normalized; BepInEx GUID deliberately unchanged.
 - **Not intended to change:** Tooltip placement, target screens, controller-only behavior, mouse behavior, gameplay, saves, or runtime binding strategy.
 - **Source basis:** accepted legacy 1.2.0 runtime behavior documented above.
 - **Source commit:** `fefe71d3492221d879efd51d3cafaabceab8c115`.
+- **Accepted freeze:** `baseline/1.3.0-accepted` at `fefe71d3492221d879efd51d3cafaabceab8c115`.
 - **CI:** public GitHub Actions run `34609035779` succeeded on `windows-latest`; artifact `GamepadTooltipPositionFix-1.3.0` (`10267347004`).
-- **Built DLL SHA-256:** `bc1915d92afdb2eb6d35995193414aba17a36784c7758dd200705f38ba5e8b8e`.
-- **Requested smoke test:** remove `MoveGamepadTooltips.dll`, install only `Gamepad Tooltip Position Fix 1.3.0.dll`, launch the game, verify Character/Inventory and Technology tooltips including one long description.
-- **Result:** **clean build passed; pending smoke test**.
+- **Accepted DLL SHA-256:** `bc1915d92afdb2eb6d35995193414aba17a36784c7758dd200705f38ba5e8b8e`.
+- **Game test:** User confirmed on 2026-09-11 that Character/Inventory, Technology, and long-tooltip behavior matched the accepted legacy behavior.
+- **Result:** **accepted**.

@@ -1,12 +1,13 @@
 # Changelog
 
-## 1.3.0 - Public repository/name migration
+## 1.3.0 - Accepted public release
 
 - Renamed the public mod from **Move Gamepad Tooltips** to **Gamepad Tooltip Position Fix**.
 - Renamed the project/assembly/DLL to `GamepadTooltipPositionFix`.
 - Preserved the existing BepInEx GUID `nikich.gyk.movegamepadtooltips` for upgrade compatibility.
 - Migrated the accepted runtime logic into a new public repository with fresh Git history.
 - No intentional tooltip-placement, gameplay, UI-scope, or save-data behavior changes from accepted 1.2.0.
+- Clean public CI succeeded and the renamed 1.3.0 DLL was smoke-tested in game on 2026-09-11 with the accepted behavior unchanged.
 
 ## 1.2.0 - Accepted legacy release
 
