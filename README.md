@@ -24,10 +24,3 @@ Copy `GamepadTooltipPositionFix.dll` into:
 ## Status
 
 Current stable version: **1.3.0**.
-
-## Development
-
-- Canonical project: `GamepadTooltipPositionFix.csproj`
-- Canonical runtime source: `src/GamepadTooltipPositionFix.cs`
-- Verified build/test history: `docs/TEST_BUILD_LOG.md`
-- Project-specific engineering rules: `AGENTS.md`
