@@ -110,3 +110,137 @@ Reconsider an event-driven rewrite only if one of the following is established w
 - or a host lifecycle change that invalidates the current `Update()` seam.
 
 Until then, replacing the accepted implementation would trade demonstrated reliability for unproven architectural neatness.
+
+## Post-audit native-state follow-up — 2026-09-19
+
+A later cross-project audit reopened one narrower question under the current DevRules host-native-first rule: whether the mod can configure native `BaseBubbleGUI.offset` once during tooltip show/redraw and then let vanilla own all later positioning.
+
+This follow-up closes that question from exact 1.407 static evidence. No production change or runtime harness is required.
+
+### Exact native position ownership
+
+For a gamepad tooltip the relevant lifecycle is:
+
+```text
+TooltipsManager.Update
+  -> Tooltip.Show(true)
+  -> TooltipBubbleGUI.Show
+     -> LinkColliderForGamepad
+     -> WidgetsBubbleGUI.Show(force_redraw: true)
+        -> Redraw
+           -> UpdateSizeAndWidgetsPositions
+              -> UpdateSize
+              -> Reposition
+              -> widget.UpdateAnchors
+           -> OnContentChanged / RecalcShifts
+           -> WidgetsBubbleGUI.Update
+              -> linked_collider.bounds
+              -> pos = top-center of collider
+              -> alternative_pos = bottom-center of collider
+              -> BaseBubbleGUI.UpdateBubble
+                 -> world/screen conversion
+                 -> choose right/up and corner
+                 -> SetGUIPosToWorldPos(... current_point.shift ...)
+                 -> localPosition += offset
+           -> schedule late recalculation / anchor updates
+WidgetsBubbleGUI.LateUpdate
+  -> optional Reposition
+  -> BaseBubbleGUI.LateUpdate
+  -> optional OnContentChanged / RecalcShifts
+
+Every later frame:
+WidgetsBubbleGUI.Update
+  -> re-read linked_collider.bounds
+  -> BaseBubbleGUI.UpdateBubble again
+```
+
+Important ownership facts:
+
+- `WidgetsBubbleGUI.Update()` re-reads the linked gamepad collider bounds every frame.
+- `BaseBubbleGUI.UpdateBubble(...)` chooses the native corner from current screen-space geometry before applying `offset`.
+- `SetGUIPosToWorldPos(...)` writes the native position using the current corner point/shift.
+- `offset` is applied only afterward as an additive `localPosition` translation.
+- `WidgetsBubbleGUI.Redraw()` performs an immediate `Update()`, but then schedules additional late anchor/shift recalculation. A normal show/redraw postfix is therefore not guaranteed to observe the final shift state for the next frame.
+- In the gamepad-collider tooltip path, later ordinary frames continue to run the native position calculation even when no new tooltip is shown.
+
+### Native `offset` hypothesis
+
+The actual relation is conceptually:
+
+```text
+final_position(t) = native_position(t) + offset
+required_offset(t) = desired_position(t) - native_position(t)
+```
+
+The accepted desired position also depends on the current tooltip size because the mod anchors the tooltip by its bottom-left edge.
+
+`native_position(t)` is not invariant. It depends on current collider bounds, screen/camera conversion, corner selection, and the current corner shift calculated from bubble geometry. The desired center position also changes when tooltip width/height changes.
+
+Therefore one constant offset configured at show/redraw is not a general fixed-position state. It remains correct only while all of those dynamic inputs remain unchanged. Vanilla's own code explicitly supports those inputs changing without a new show by re-reading the collider and recomputing position every frame.
+
+There is also an ordering problem on initial/redraw layout: `Redraw()` calls `Update()`, then late lifecycle work can recalculate bubble shifts. An offset computed in a simple `Show` or `Redraw` postfix can therefore become stale before the next normal frame.
+
+Making offset robust would require at least one of:
+
+- a deferred post-layout hook plus invalidation for later collider/layout/screen changes;
+- multiple lifecycle hooks and custom state;
+- or recurring recalculation of the required offset.
+
+All three remove the simplicity advantage of the proposed event-driven design. Recurring offset recalculation is especially pointless here: it would still need to determine the same dynamic native result every frame, while the current postfix simply writes the already-known accepted final transform after vanilla finishes its calculation.
+
+### Seam comparison
+
+| Seam / mechanism | Frequency | Owns final size? | Owns position? | Later vanilla overwrite risk | Extra state / breadth | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| `TooltipBubbleGUI.Show` | per new tooltip | size is built before return | no | high: normal `Update` resumes, late shift recalculation follows | would need deferred/invalidation state | reject |
+| `WidgetsBubbleGUI.Show/Redraw` | show/content redraw | yes | invokes positioning, but does not own later frames | high | would need offset lifecycle state | reject |
+| `UpdateSizeAndWidgetsPositions` | layout/content changes | yes | no | high | misses collider/focus movement without layout | reject |
+| native `BaseBubbleGUI.offset` configured once | event-driven candidate | n/a | additive input only | high when native base changes | invalidation/recompute required | reject |
+| `BaseBubbleGUI.UpdateBubble` patch | recurring | receives current native inputs | yes | low if patched after native write | broader base-class seam used by multiple bubble families | worse than current |
+| `TooltipsManager.Redraw` | focus/redraw events | indirectly | no | high | broad manager seam; same-tooltip movement is not represented | reject |
+| current `WidgetsBubbleGUI.Update` postfix | recurring | current widget dimensions available | vanilla position just completed | none from the ordinary gamepad-collider position path before the next frame | one accepted hook, no custom lifecycle state | **keep** |
+| hybrid lifecycle cache + recurring correction | mixed | can cache some inputs | partial | controllable | adds state/invalidation for negligible saved work | reject |
+
+### Current hook breadth and cost
+
+The Harmony target is the `WidgetsBubbleGUI.Update()` method body, so the postfix can execute for active instances that use that inherited method, not only the exact `TooltipBubbleGUI` class. Some other bubble types derive from `WidgetsBubbleGUI`; an exact invocation count is runtime-state dependent rather than a fixed project constant.
+
+This does not change the performance verdict:
+
+- the first check is the cached gamepad flag;
+- reflection/member discovery occurs only during initialization;
+- the recurring path contains no LINQ, string work, hierarchy search, `Find`, `GetComponent`, or intentional managed allocation;
+- outside Inventory/Technology it exits after bounded cached state checks;
+- on the two target screens it reads current widget width/height and performs one transform assignment.
+
+The transform assignment is intentionally repeated because vanilla itself recomputes the position every frame. Caching the previous position would retain the recurring checks/geometry reads while adding invalidation state.
+
+A subtype-only guard could theoretically reduce the semantic surface further, but there is no accepted bug or measured cost caused by the present surface. Adding another runtime assumption solely for architectural neatness is not justified under the least-sufficient-mechanism rule.
+
+### Resolution, UI scale, content size, and focus
+
+Native `UpdateBubble` consults current `Screen.width` / `Screen.height`, current collider position, current corner shifts, and camera conversion. This is additional evidence against a one-time offset: resolution/aspect/layout changes can alter the required compensation.
+
+The accepted current implementation continues to derive its center from the live widget width/height, preserving the established bottom-left anchoring when tooltip content size changes.
+
+This follow-up does **not** claim new runtime certification for every resolution, UI scale, locale, or aspect ratio. It establishes only that replacing the accepted direct correction with a constant native offset would add lifecycle/invalidation requirements rather than remove them.
+
+### Post-audit decision
+
+**Keep the current implementation.**
+
+The later audit did identify a real host-native input (`BaseBubbleGUI.offset`), but exact lifecycle inspection proves that it is an additive translation after a dynamic native position calculation, not a persistent absolute-position mode. A fully event-driven offset solution is therefore not equivalent without extra hooks/state.
+
+Patching `BaseBubbleGUI.UpdateBubble` would move to a broader shared base-class seam, not a narrower one. A hybrid would retain recurring work and add state. The accepted `WidgetsBubbleGUI.Update()` postfix remains the smallest proven mechanism with the lowest complexity and ordering risk.
+
+No production source, version, branch, binary, accepted ref, or artifact changes are warranted. No runtime harness or hosted CI run is warranted because the decisive property is closed by exact static lifecycle evidence.
+
+Canonical accepted runtime identity remains:
+
+- version: `1.3.0`;
+- source: `fefe71d3492221d879efd51d3cafaabceab8c115`;
+- frozen ref: `baseline/1.3.0-accepted`;
+- accepted DLL SHA-256: `bc1915d92afdb2eb6d35995193414aba17a36784c7758dd200705f38ba5e8b8e`.
+
+Reopen this architecture question only if contradictory runtime evidence appears, the host lifecycle changes, or a genuinely narrower post-layout owner is discovered that preserves dynamic collider/content/screen behavior without extra state.
+

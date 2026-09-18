@@ -50,6 +50,8 @@ Follow `DevRules/CI_POLICY.md`.
 
 ## Long-lived sources of truth
 
-Use `README.md`, `CHANGELOG.md`, `docs/MIGRATION_PROVENANCE.md`, `docs/TEST_BUILD_LOG.md`, the canonical source/project files, and current public repository history. Historical pre-public evidence remains available in `666drjekyll666-cloud/Move-Gamepad-Tooltips-legacy-private`.
+Use `README.md`, `CHANGELOG.md`, `docs/MIGRATION_PROVENANCE.md`, `docs/TEST_BUILD_LOG.md`, `docs/PERFORMANCE_LIFECYCLE_AUDIT_1.3.0.md`, the canonical source/project files, and current public repository history. Historical pre-public evidence remains available in `666drjekyll666-cloud/Move-Gamepad-Tooltips-legacy-private`.
+
+Before reopening the tooltip positioning architecture, read `docs/PERFORMANCE_LIFECYCLE_AUDIT_1.3.0.md`. The native `BaseBubbleGUI.offset`, show/redraw lifecycle, and `BaseBubbleGUI.UpdateBubble` alternatives have already been investigated against Graveyard Keeper 1.407; do not repeat that research without contradictory evidence or a changed host/runtime.
 
 When chat memory conflicts with repository evidence, investigate the conflict before changing code.
